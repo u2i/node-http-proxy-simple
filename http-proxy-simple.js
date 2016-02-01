@@ -91,6 +91,8 @@ module.exports = {
                 request.headers.via += ":" + request.connection.address().port;
             request.headers.via += " (" + id + ")";
 
+            var requestBody = '';
+
             /*  assemble request information  */
             var remoteRequest = {
                 url:            request.url,
@@ -100,6 +102,7 @@ module.exports = {
                 followRedirect: false,
                 encoding:       null
             };
+
             if (proxy !== "") {
                 var hostname = url.parse(remoteRequest.url).hostname;
                 if (hostname !== "localhost" && hostname !== "127.0.0.1")
@@ -150,9 +153,19 @@ module.exports = {
                     response.end();
                 }
             };
-            emitOrRun("http-intercept-request", function () {
-                performRequest(remoteRequest);
-            }, cid, request, response, remoteRequest, performRequest);
+
+            request.on('data', function(chunk) {
+                // append the current chunk of data to the requestBody variable
+                requestBody += chunk.toString();
+            });
+
+            request.on('end', function () {
+                request.body = requestBody;
+                remoteRequest.body = requestBody;
+                emitOrRun("http-error ntercept-request", function () {
+                    performRequest(remoteRequest);
+                }, cid, request, response, remoteRequest, performRequest);
+            });
         });
 
         /*  react upon HTTP server events  */
